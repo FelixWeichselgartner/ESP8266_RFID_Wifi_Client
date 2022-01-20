@@ -21,6 +21,11 @@
  * More pin layouts for other boards can be found here: https://github.com/miguelbalboa/rfid#pin-layout
 */
 
+#include <ESP8266WiFi.h>
+
+String ssid = "wifi-Felix";
+String password = "a9#5u1+-5";
+
 #include <SPI.h>
 #include <MFRC522.h>
 
@@ -60,6 +65,22 @@ void setup() {
     while (!Serial)
         ;
     Serial.println("starting program");
+
+    //WiFi.mode(WIFI_STA);
+    
+    WiFi.begin(ssid.c_str(), password.c_str());
+    Serial.println("Connecting to Wifi");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.print(".");
+        delay(500);
+        yield();
+    }
+    //WiFi.setAutoReconnect(true);
+    //WiFi.persistent(true);
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
 
     pinMode(2, OUTPUT);
     pinMode(button1, INPUT);
@@ -183,9 +204,32 @@ void loop() {
     }
     String name = UID; //String((char *)buffer1) + String((char *)buffer2) + "\n";
     Serial.println(UID);
-    led_write_text(name);
+    led_write_text("uid:" + name);
 
-    delay(1000); //change value if you want to read cards faster
+    const char* server_ip = "192.168.178.77";
+    WiFiClient client;
+
+    if (client.connect(server_ip, 9999))
+    {
+        Serial.print("we are connected to the host!");
+        client.print("uid:" + name + "\n");
+
+        while (client.connected())
+        {
+            if (client.available())
+            {
+                String line = client.readStringUntil('\n');
+                Serial.println(line);
+                led_write_text("uid:" + name + "\n" + line);
+            }
+        }
+    }
+    else
+    {
+        Serial.print("connection failure");
+    }
+
+    delay(5000); //change value if you want to read cards faster
 
     mfrc522.PICC_HaltA();
     mfrc522.PCD_StopCrypto1();
